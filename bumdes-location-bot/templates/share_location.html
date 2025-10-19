@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bagikan Lokasi Anda</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f7fa; text-align: center; padding: 40px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 420px; margin: auto; padding: 30px; }
+    button { background-color: #2563eb; color: white; padding: 12px 22px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+    button:hover { opacity: 0.95; }
+    input { padding: 8px; width: 85%; margin-top: 10px; border-radius: 6px; border: 1px solid #ddd; }
+    #status { margin-top: 12px; color: #333; }
+    small { color: #666; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Bagikan Lokasi Anda</h2>
+    <p id="info">
+      Anda akan membagikan lokasi Anda secara sukarela ke
+      <strong id="destEmail">email peminta</strong>.<br>
+      Klik tombol di bawah untuk mengirim lokasi akurat Anda.
+    </p>
+    <input id="name" type="text" placeholder="Nama Pelanggan INFODES">
+    <br>
+    <br>
+    <button id="btnSend">Bagikan Lokasi Sekarang</button>
+    <p id="status"></p>
+    <small>Privasi: lokasi hanya dikirim jika Anda menekan tombol dan memberi izin.</small>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const dest = params.get('to') || 'majumakmurbumdes04@gmail.com';
+    document.getElementById('destEmail').textContent = dest;
+
+    const reportUrlBase = '/report' + (dest ? ('?to=' + encodeURIComponent(dest)) : '');
+
+    document.getElementById('btnSend').addEventListener('click', () => {
+      const name = document.getElementById('name').value;
+      const status = document.getElementById('status');
+      status.textContent = 'Mengambil lokasi...';
+
+      if (!navigator.geolocation) {
+        status.textContent = 'Browser Anda tidak mendukung geolokasi.';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const data = {
+            name,
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            timestamp: new Date(pos.timestamp).toISOString(),
+            userAgent: navigator.userAgent
+          };
+
+          status.textContent = 'Mengirim lokasi...';
+          try {
+            const resp = await fetch(reportUrlBase, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            if (resp.ok) {
+              status.textContent = '✅ Lokasi berhasil dikirim.';
+            } else {
+              const text = await resp.text();
+              status.textContent = '❌ Gagal mengirim lokasi: ' + text;
+            }
+          } catch (e) {
+            status.textContent = '❌ Error: ' + e;
+          }
+        },
+        (err) => {
+          status.textContent = '❌ Gagal mendapatkan lokasi: ' + err.message;
+        },
+        { enableHighAccuracy: true, timeout: 15000 }
+      );
+    });
+  </script>
+</body>
+</html>
